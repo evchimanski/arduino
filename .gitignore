@@ -1,0 +1,12 @@
+# Compiled Python files
+__pycache__/
+*.pyc
+
+# Node.js modules
+node_modules/
+
+# Java compiled files
+*.class
+
+# Log files
+*.log
