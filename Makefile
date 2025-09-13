@@ -14,7 +14,7 @@ all: setup
 setup:
 	@echo "Using Python: $(PYTHON)"
 	$(PYTHON) -m venv $(VENV_DIR)
-	. $(VENV_DIR)/bin/activate && pip install --upgrade pip && pip install pyserial matplotlib pandas
+	. $(VENV_DIR)/bin/activate && pip install --upgrade pip && pip install pyserial matplotlib pandas scipy
 
 # Print activation command (manual activation for user)
 activate:
@@ -23,9 +23,6 @@ activate:
 	@echo "$(ACTIVATE)"
 	@echo ""
 
-# Run the logger script inside the venv
-run:
-	. $(VENV_DIR)/bin/activate && python arduino_logger.py
 
 # Clean up
 clean:
