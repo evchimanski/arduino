@@ -1,0 +1,77 @@
+#include <Wire.h>                    // Include Wire library for I2C communication
+#include <Adafruit_ADS1X15.h>         // Include the Adafruit library for ADS1X15 series (ADS1115 in this case)
+
+// Create ADS1115 object (no address in the constructor, use default 0x48)
+Adafruit_ADS1115 ads; 
+
+// Fixed resistor in the voltage divider (10kΩ, adjust if needed)
+const float R_FIXED = 10000.0;
+
+// Supply voltage (should match the voltage you're using to power the ADS1115 and voltage divider)
+const float Vcc = 5.0;  // Typically 5V for Arduino, but could be 3.3V depending on your system
+
+// Steinhart–Hart coefficients for a 10kΩ thermistor (standard NTC thermistor with B≈3950)
+// These values can be adjusted based on your specific thermistor datasheet
+const float A = 0.001129148; // Steinhart–Hart coefficient A
+const float B = 0.000234125; // Steinhart–Hart coefficient B
+const float C = 0.0000000876741; // Steinhart–Hart coefficient C
+
+// Beta parameter model constants (usually found in the thermistor's datasheet)
+const float R0 = 10000.0;   // Nominal resistance at reference temperature (25°C)
+const float T0 = 298.15;    // Reference temperature = 25°C in Kelvin (298.15 K)
+const float BETA = 3950.0;  // Beta constant (specific to the thermistor model)
+
+// Setup function is called once when the program starts
+void setup(void) {
+  Serial.begin(9600);      // Initialize serial communication at 9600 baud rate
+  ads.begin();             // Initialize the ADS1115 sensor (this uses the default address 0x48)
+  ads.setGain(GAIN_TWOTHIRDS); // Set the gain to ±6.144V range (0.1875mV/bit for resolution)
+}
+
+// Loop function runs continuously
+void loop(void) {
+  // Read the ADC value from channel 0 (AIN0)
+  int16_t adc0 = ads.readADC_SingleEnded(0);  // ADC value from channel 0
+  
+  // Convert the ADC value to voltage (since the ADS1115 has a 16-bit range)
+  // Formula: voltage = (ADC value * voltage per bit) / 1000 to convert to volts
+  float voltage = (adc0 * 0.1875) / 1000.0;  // Voltage in volts
+  
+  // Calculate the thermistor resistance from the voltage divider equation:
+  // R_therm = (R_fixed * V_out) / (Vcc - V_out)
+  // where V_out is the voltage measured across the thermistor
+  float R_therm = (R_FIXED * voltage) / (Vcc - voltage);
+
+  // ---- Method 1: Steinhart–Hart Equation ----
+  // This method uses a logarithmic equation to calculate the temperature from the thermistor resistance
+  float logR = log(R_therm);                  // Natural log of thermistor resistance
+  float inv_T = A + B * logR + C * pow(logR, 3); // Steinhart-Hart equation
+  float temperatureK_SH = 1.0 / inv_T;        // Calculate temperature in Kelvin (K)
+  float temperatureC_SH = temperatureK_SH - 273.15; // Convert Kelvin to Celsius (°C)
+
+  // ---- Method 2: Beta Parameter Equation ----
+  // This method calculates temperature using a simplified Beta model, often used for thermistors
+  float temperatureK_Beta = 1.0 / ( (1.0 / T0) + (1.0 / BETA) * log(R_therm / R0) );
+  float temperatureC_Beta = temperatureK_Beta - 273.15;  // Convert Kelvin to Celsius (°C)
+
+  // ---- Print results to the Serial Monitor ----
+  // Display the ADC value, calculated voltage, thermistor resistance, and the temperatures from both methods
+  Serial.print("ADC: ");
+  Serial.print(adc0);  // Print the raw ADC value
+  Serial.print("\tV: ");
+  Serial.print(voltage, 4);  // Print the voltage in 4 decimal places
+  Serial.print(" V\tR: ");
+  Serial.print(R_therm, 1);  // Print the thermistor resistance in ohms (1 decimal)
+
+  // Print the calculated temperature using Steinhart-Hart method
+  Serial.print("\tTemp(SH): ");
+  Serial.print(temperatureC_SH, 2);  // Print temperature in Celsius (2 decimal places)
+  Serial.print(" *C");
+
+  // Print the calculated temperature using the Beta model
+  Serial.print("\tTemp(Beta): ");
+  Serial.print(temperatureC_Beta, 2);  // Print temperature in Celsius (2 decimal places)
+  Serial.println(" *C");
+
+  delay(1000);  // Wait 1 second before reading again
+}
