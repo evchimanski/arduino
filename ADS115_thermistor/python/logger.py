@@ -20,7 +20,7 @@ BETA = 3950.0  # Beta constant
 
 # Control parameters
 measurement_interval = 1  # seconds between measurements
-measurements_per_plot = 2#10  # Number of measurements before plotting and saving
+measurements_per_plot = 5  # Number of measurements before plotting and saving
 
 # CSV File
 csv_filename = "thermistor_data.csv"
@@ -74,29 +74,30 @@ def plot_data_from_csv(csv_file):
     df_or = pd.read_csv(csv_file)
     df_or = df_or.dropna()
     df = df_or[df_or['Temp_SH (C)'] > 0. ].copy()
-    
+
     #print(df.columns)
     # Extract the data from the CSV
     time = df['Elapsed Time (min)']  # In minutes
     temp_SH_K = df['Temp_SH (K)']
     temp_Beta_K = df['Temp_Beta (K)']
-    R_therm = df['R_therm (Ohms)']
+
+    col_name = 'Voltage (V)'
+    data = df[col_name].to_numpy()
 
     # Initialize lists for cumulative averages and std
     avg_temp_SH_K = []
     std_temp_SH_K = []
     avg_temp_Beta_K = []
     std_temp_Beta_K = []
-    avg_R_therm = []
-    std_R_therm = []
+    avg_data = []
+    std_data = []
 
     # Cumulative calculations
     for i in range(len(time)):
         # Get the subset of data up to current index (i)
         temp_SH_K_sub = temp_SH_K[:i+1]
         temp_Beta_K_sub = temp_Beta_K[:i+1]
-        R_therm_sub = R_therm[:i+1]
-
+        temp_data_sub = data[:i+1]
         # Cumulative average and std
         avg_temp_SH_K.append(np.mean(temp_SH_K_sub))
         std_temp_SH_K.append(np.std(temp_SH_K_sub))
@@ -104,8 +105,10 @@ def plot_data_from_csv(csv_file):
         avg_temp_Beta_K.append(np.mean(temp_Beta_K_sub))
         std_temp_Beta_K.append(np.std(temp_Beta_K_sub))
 
-        avg_R_therm.append(np.mean(R_therm_sub))
-        std_R_therm.append(np.std(R_therm_sub))
+        avg_data.append(np.mean(temp_data_sub))
+        std_data.append(np.mean(temp_data_sub))
+
+
     
     # Plotting
     fig, axs = plt.subplots(2, 2, figsize=(10, 10))
@@ -129,18 +132,19 @@ def plot_data_from_csv(csv_file):
     axs[0, 1].legend()
 
     # Plot 3: R_therm with cumulative average and error bars
-    axs[1, 0].errorbar(time, avg_R_therm, yerr=std_R_therm, fmt='o', color='purple',alpha =0.5)
-    axs[1, 0].plot(time, R_therm, label="Cumulative Avg R_therm", linestyle='--', color='purple')
+    axs[1, 0].errorbar(time, avg_data, yerr=std_data, fmt='o', color='purple',alpha =0.5)
+    axs[1, 0].plot(time, data, linestyle='--', color='purple')
     #axs[1, 0].set_title("Cumulative R_therm (Ohms)")
     axs[1, 0].set_xlabel("Elapsed Time (min)")
-    axs[1, 0].set_ylabel("Resistance (Ohms)")
-    axs[1, 0].legend()
+    axs[1, 0].set_ylabel(col_name)
 
     # Plot 4: Histogram of instantaneous R_therm values
-    axs[1, 1].hist(R_therm, bins=20, alpha=0.5, color='purple' ,label = f"{np.mean(R_therm):3.2f} +- {np.std(R_therm):3.2f} ")
+
+    axs[1, 1].hist(data, bins=20, alpha=0.5, color='purple' ,label = f"{np.mean(data):3.2f} +- {np.std(data):3.2f} ")
     #axs[1, 1].set_title("Histogram of Instantaneous R_therm (Ohms)")
-    axs[1, 1].set_xlabel("Resistance (Ohms)")
-    axs[1, 1].set_ylabel("Frequency")
+    axs[1, 1].set_xlabel(col_name)
+    axs[1, 1].set_ylabel("counts")
+    axs[1, 1].legend()
 
     plt.tight_layout()
     plt.savefig("temperature_plot.png")
@@ -161,6 +165,8 @@ csv_header = ['Elapsed Time (min)', 'Date', 'Voltage (V)', 'R_therm (Ohms)', 'Te
 with open(csv_filename, mode='w', newline='') as file:
     writer = csv.writer(file)
     writer.writerow(csv_header)
+
+buffer_data = []
 
 while True:
     # Get the current elapsed time (convert from seconds to minutes)
@@ -189,37 +195,49 @@ while True:
 
     # If we've reached the required number of measurements, save to CSV and update the plot
     measurement_count += 1
+    buffer_data.append([elapsed_time, datetime.now().strftime("%m-%d-%Y %H:%M:%S"),
+    voltage, R_therm,
+    temp_SH_K_value, temp_SH_F_value, temp_SH_C_value,
+    temp_Beta_K_value, temp_Beta_F_value, temp_Beta_C_value])
+
+
     if measurement_count >= measurements_per_plot:
 
         
         # Write data to CSV
+        # with open(csv_filename, mode='a', newline='') as file:
+        #     writer = csv.writer(file)
+        #
+        #     writer.writerow([
+        #         round(elapsed_time, 2),
+        #         datetime.now().strftime("%m-%d-%Y %H:%M:%S"),
+        #         round(voltage, 4),
+        #         round(R_therm, 1),
+        #         round(temp_SH_K_value, 2),
+        #         round(temp_SH_F_value , 2),
+        #         round(temp_SH_C_value , 2),
+        #         round(temp_Beta_K_value, 2),
+        #         round(temp_Beta_F_value, 2),
+        #         round(temp_Beta_C_value , 2)
+        #     ])
+        # Write data to CSV
         with open(csv_filename, mode='a', newline='') as file:
             writer = csv.writer(file)
+            for k in range(len(buffer_data)):
+                        row = buffer_data[k]
+                        writer.writerow([round(row[0],2),row[1],
+                        round(row[2],4),round(row[3],4),
+                        round(row[4],1),round(row[5],2),round(row[6],2),
+                        round(row[7],2),round(row[8],2),round(row[9],2)])
 
-            writer.writerow([
-                round(elapsed_time, 2),
-                datetime.now().strftime("%m-%d-%Y %H:%M:%S"),
-                round(voltage, 4),
-                round(R_therm, 1),
-                round(temp_SH_K_value, 2),
-                round(temp_SH_F_value , 2),
-                round(temp_SH_C_value , 2),
-                round(temp_Beta_K_value, 2),
-                round(temp_Beta_F_value, 2),
-                round(temp_Beta_C_value , 2)
-            ])
+            file.flush()
 
         # Plot the data
         plot_data_from_csv(csv_filename)
 
         # Reset the data lists for the next set of measurements
         measurement_count = 0
-        times = []
-        voltages = []
-        r_therm_values = []
-        temp_SH_K = []
-        temp_Beta_K = []
-        # Check if the STOP file exists
+        buffer_data = []
         if os.path.exists('STOP'):
             print("STOP file detected, exiting...")
             break
