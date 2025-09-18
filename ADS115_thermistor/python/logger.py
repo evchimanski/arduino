@@ -17,12 +17,6 @@ R0 = 10000.0  # Thermistor nominal resistance at T0 (25°C)
 T0 = 298.15  # Reference temperature (25°C in Kelvin)
 BETA = 3950.0  # Beta constant
 
-# Initialize lists to store measurements
-times = []
-voltages = []
-r_therm_values = []
-temp_SH_K = []  # List to store Steinhart-Hart temperature in Kelvin
-temp_Beta_K = []  # List to store Beta temperature in Kelvin
 
 # Control parameters
 measurement_interval = 1  # seconds between measurements
@@ -30,7 +24,6 @@ measurements_per_plot = 2#10  # Number of measurements before plotting and savin
 
 # CSV File
 csv_filename = "thermistor_data.csv"
-csv_header = ['Elapsed Time (min)', 'Date', 'Voltage (V)', 'R_therm (Ohms)', 'Temp_SH (K)', 'Temp_SH (°F)', 'Temp_SH (°C)', 'Temp_Beta (K)', 'Temp_Beta (°F)', 'Temp_Beta (°C)']
 
 # Function to simulate sensor reading (replace with actual ADC reading code in production)
 def read_sensor():
@@ -72,10 +65,7 @@ def calculate_temp_Beta(R_therm):
     T_F = T_C * 9.0 / 5.0 + 32.0
     return T_K, T_F, T_C
 
-# Create a new CSV file and write the header
-with open(csv_filename, mode='w', newline='') as file:
-    writer = csv.writer(file)
-    writer.writerow(csv_header)
+
 
 
 # Function to plot the data
@@ -83,7 +73,7 @@ def plot_data_from_csv(csv_file):
     # Read the CSV file into a DataFrame
     df_or = pd.read_csv(csv_file)
     df_or = df_or.dropna()
-    df = df_or[df_or['Temp_SH (°C)'] > 0. ].copy()
+    df = df_or[df_or['Temp_SH (C)'] > 0. ].copy()
     
     #print(df.columns)
     # Extract the data from the CSV
@@ -125,15 +115,15 @@ def plot_data_from_csv(csv_file):
     axs[0, 0].errorbar(time, avg_temp_Beta_K, yerr=std_temp_Beta_K, label="Acc. Ave.", fmt='o', color='green', alpha = 0.5)
     axs[0, 0].plot(time, temp_SH_K, label="Temp(SH) K", linestyle='--', color='blue')
     axs[0, 0].plot(time, temp_Beta_K, label="Temp(Beta) K", linestyle='--', color='green')
-    axs[0, 0].set_title("Cumulative Temperature in K (SH & Beta)")
+    #axs[0, 0].set_title("Cumulative Temperature in K (SH & Beta)")
     axs[0, 0].set_xlabel("Elapsed Time (min)")
     axs[0, 0].set_ylabel("Temperature (K)")
     axs[0, 0].legend()
 
     # Plot 2: Histogram of instantaneous temperature measurements in K (SH & Beta)
-    axs[0, 1].hist(temp_SH_K, bins=20, alpha=0.5, label='Temp(SH) K', color='blue')
-    axs[0, 1].hist(temp_Beta_K, bins=20, alpha=0.5, label='Temp(Beta) K', color='green')
-    axs[0, 1].set_title("Histogram of Instantaneous Temperatures (K)")
+    axs[0, 1].hist(temp_SH_K, bins=20, alpha=0.5, label=f'Temp(SH) K: {np.mean(temp_SH_K):3.2f} +- {np.std(temp_SH_K):3.2f} ', color='blue')
+    axs[0, 1].hist(temp_Beta_K, bins=20, alpha=0.5, label=f'Temp(Beta) K: {np.mean(temp_Beta_K):3.2f} +- {np.std(temp_Beta_K):3.2f} ', color='green')
+    #axs[0, 1].set_title("Histogram of Instantaneous Temperatures (K)")
     axs[0, 1].set_xlabel("Temperature (K)")
     axs[0, 1].set_ylabel("Frequency")
     axs[0, 1].legend()
@@ -141,19 +131,20 @@ def plot_data_from_csv(csv_file):
     # Plot 3: R_therm with cumulative average and error bars
     axs[1, 0].errorbar(time, avg_R_therm, yerr=std_R_therm, fmt='o', color='purple',alpha =0.5)
     axs[1, 0].plot(time, R_therm, label="Cumulative Avg R_therm", linestyle='--', color='purple')
-    axs[1, 0].set_title("Cumulative R_therm (Ohms)")
+    #axs[1, 0].set_title("Cumulative R_therm (Ohms)")
     axs[1, 0].set_xlabel("Elapsed Time (min)")
     axs[1, 0].set_ylabel("Resistance (Ohms)")
     axs[1, 0].legend()
 
     # Plot 4: Histogram of instantaneous R_therm values
-    axs[1, 1].hist(R_therm, bins=20, alpha=0.5, color='purple')
-    axs[1, 1].set_title("Histogram of Instantaneous R_therm (Ohms)")
+    axs[1, 1].hist(R_therm, bins=20, alpha=0.5, color='purple' ,label = f"{np.mean(R_therm):3.2f} +- {np.std(R_therm):3.2f} ")
+    #axs[1, 1].set_title("Histogram of Instantaneous R_therm (Ohms)")
     axs[1, 1].set_xlabel("Resistance (Ohms)")
     axs[1, 1].set_ylabel("Frequency")
 
     plt.tight_layout()
     plt.savefig("temperature_plot.png")
+    plt.clf();plt.close('all') # Closes all currently open figures
 #    plt.show()
 
 
@@ -164,13 +155,12 @@ def plot_data_from_csv(csv_file):
 measurement_count = 0
 start_time = time.time()
 
-# Initialize variables to calculate the cumulative averages and uncertainties
-temp_SH_K_cumulative = []
-temp_Beta_K_cumulative = []
-temp_SH_K_avg = 0
-temp_Beta_K_avg = 0
-temp_SH_K_uncertainty = []
-temp_Beta_K_uncertainty = []
+csv_header = ['Elapsed Time (min)', 'Date', 'Voltage (V)', 'R_therm (Ohms)', 'Temp_SH (K)', 'Temp_SH (F)', 'Temp_SH (C)', 'Temp_Beta (K)', 'Temp_Beta (F)', 'Temp_Beta (C)']
+
+# Create a new CSV file and write the header
+with open(csv_filename, mode='w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerow(csv_header)
 
 while True:
     # Get the current elapsed time (convert from seconds to minutes)
@@ -189,12 +179,6 @@ while True:
     temp_SH_K_value, temp_SH_F_value, temp_SH_C_value = calculate_temp_SH(R_therm)
     temp_Beta_K_value, temp_Beta_F_value, temp_Beta_C_value = calculate_temp_Beta(R_therm)
 
-    # Store the measurements in memory
-    times.append(elapsed_time)
-    voltages.append(voltage)
-    r_therm_values.append(R_therm)
-    temp_SH_K.append(temp_SH_K_value)  # Corrected to append the temperature value, not the float itself
-    temp_Beta_K.append(temp_Beta_K_value)
 
     # Print the current measurements to the screen (including elapsed time in minutes)
     print(f"Time: {elapsed_time:.2f} min | Voltage: {voltage:.4f} V | R_therm: {R_therm:.1f} Ohms")
@@ -211,19 +195,19 @@ while True:
         # Write data to CSV
         with open(csv_filename, mode='a', newline='') as file:
             writer = csv.writer(file)
-            for i in range(len(times)):
-                writer.writerow([
-                    round(times[i], 2),
-                    datetime.now().strftime("%m-%d-%Y %H:%M:%S"),
-                    round(voltages[i], 4),
-                    round(r_therm_values[i], 1),
-                    round(temp_SH_K[i], 2),
-                    round(temp_SH_K[i] * 9.0 / 5.0 + 32.0, 2),
-                    round(temp_SH_K[i] - 273.15, 2),
-                    round(temp_Beta_K[i], 2),
-                    round(temp_Beta_K[i] * 9.0 / 5.0 + 32.0, 2),
-                    round(temp_Beta_K[i] - 273.15, 2)
-                ])
+
+            writer.writerow([
+                round(elapsed_time, 2),
+                datetime.now().strftime("%m-%d-%Y %H:%M:%S"),
+                round(voltage, 4),
+                round(R_therm, 1),
+                round(temp_SH_K_value, 2),
+                round(temp_SH_F_value , 2),
+                round(temp_SH_C_value , 2),
+                round(temp_Beta_K_value, 2),
+                round(temp_Beta_F_value, 2),
+                round(temp_Beta_C_value , 2)
+            ])
 
         # Plot the data
         plot_data_from_csv(csv_filename)
