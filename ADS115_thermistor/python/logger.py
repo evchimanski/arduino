@@ -77,11 +77,6 @@ with open(csv_filename, mode='w', newline='') as file:
     writer = csv.writer(file)
     writer.writerow(csv_header)
 
-# Plotting function with error bars for cumulative average and uncertainty
-
-import matplotlib.pyplot as plt
-import pandas as pd
-import numpy as np
 
 # Function to plot the data
 def plot_data_from_csv(csv_file):
@@ -200,13 +195,6 @@ while True:
     r_therm_values.append(R_therm)
     temp_SH_K.append(temp_SH_K_value)  # Corrected to append the temperature value, not the float itself
     temp_Beta_K.append(temp_Beta_K_value)
-
-    # Calculate the cumulative averages and uncertainties (standard deviation)
-    temp_SH_K_avg = np.mean(temp_SH_K)
-    temp_Beta_K_avg = np.mean(temp_Beta_K)
-    
-    temp_SH_K_uncertainty = np.std(temp_SH_K)
-    temp_Beta_K_uncertainty = np.std(temp_Beta_K)
 
     # Print the current measurements to the screen (including elapsed time in minutes)
     print(f"Time: {elapsed_time:.2f} min | Voltage: {voltage:.4f} V | R_therm: {R_therm:.1f} Ohms")
